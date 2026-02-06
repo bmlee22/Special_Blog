@@ -1,0 +1,111 @@
+---
+title: "2-6 Blog, National Parks"
+author: "Ben Lee"
+format: 
+  html:
+    embed-resources: true
+---
+
+In my new data visualization class I found that I had not retained as much information from previous coding classes as I had wished. To remedy this I reviewed notes from my previous classes and found myself asking new questions about the data we used and how it was visualized. We had recently reviewed how to map data onto an actaul map and notes taken regarding nationalparks stood out to me. This data was collected in 2024 and had the names of the national parks in the united states, how many visitors they recieved, the area of the park and many more variables. I collected and tidied this data using the code from the previous course as it had only used to modify the data, not to make any new claims or interpretations.
+
+```{r}
+## library(ggplot2)
+## library(forcats)
+## library(tidyverse)
+## library(rvest)
+```
+
+```{r}
+url <- "https://en.wikipedia.org/wiki/List_of_national_parks_of_the_United_States"
+
+# scrape the table of national parks
+objs <-
+  url %>%
+  read_html() %>%
+  html_nodes("table") %>%
+  html_table()
+
+usa_parks <- objs[[1]]
+```
+
+
+```{r}
+usa_parks_cleaned <-
+  usa_parks %>%
+  # clean up the variable names
+  rename(
+    Created = 4,
+    Area = 5,
+    Visitors_2024 = 6
+  ) %>%
+  select(-2) %>%
+  separate_wider_delim(
+    cols = 4,
+    names = c("Area_acres", "Area_km2"),
+    delim = "("
+  ) %>%
+  # run a parse_number on area variables and visitors
+  mutate(
+    Area_acres = parse_number(Area_acres),
+    Area_km2 = parse_number(Area_km2),
+    Visitors_2024 = parse_number(Visitors_2024)
+         ) %>% 
+  # convert Created into a <date> variable
+  mutate(
+    Created = str_remove(string = Created, pattern = "\\[(.*)"),  # get rid of footnotes, then...
+    Established = mdy(Created)
+    ) %>%
+  # clean up the names to remove the junk characters
+  mutate(
+    Name = str_replace_all(string = Name, pattern = "[^A-Za-z]", replacement = " ") %>%
+      str_squish()
+  ) %>% 
+  # extract the lat/lon values from Location variable
+  mutate(
+    lat = str_extract(Location, "\\d{1,2}\\.\\d+(?=°N|°S)"),
+    lon = str_extract(Location, "-?\\d{1,3}\\.\\d+(?=°W|°E)")
+    ) %>%
+  mutate(
+    lat = parse_number(lat),
+    lon = parse_number (lon)
+  )
+```
+
+After tidying the dataset we are able to see the variables more clearly and start thinking about what questions one might have regarding national parks. A question I immediately had was about how many people visited each park compared to one another. Humans are good at using length to quantify objects so it was clear that a geom_col was the best option for visualizing this. 
+```{r}
+ggplot(data = usa_parks_cleaned, aes(x = Name, y = Visitors_2024))+
+  geom_col()
+```
+
+There is a clear winner in terms of visitation, however, the graph is too crowded and we can't tell the name of the national park that recieved the most visitiors in 2024. To fix this issue I reduced the number of parks we will see on the graph and will use color to differential each park.
+
+```{r}
+top10_usa_parks <- usa_parks_cleaned |>
+  arrange(desc(Visitors_2024)) |>
+  slice(1:10)
+```
+
+
+```{r}
+ggplot(data = top10_usa_parks, aes(x = Name, y = Visitors_2024, fill = Name)) +
+  geom_col() 
+```
+
+Althought this looks better, there is reduntant information and it is difficult to compare the attendance of the other national parks. To do this we need to reorder the variables based on visitors and not on the alphabetical order of the parks. This was done using a fct_reorder. In addition to this we can flip the axis to make the chart easier to read. Changing the labels also makes it easier to see the names of the variables. Finally, I changed some asthetics to make the graph more visually pleasing leaving the final graph below.  
+
+```{r}
+ggplot(data = top10_usa_parks, aes(y = forcats::fct_reorder(Name, Visitors_2024), Name, x = Visitors_2024, fill = Name))+
+  geom_col(show.legend = FALSE) +
+  theme_minimal() +
+  labs(title = " National Park Attendance in 2024",
+       x = "Number of Visitors",
+       y = "Park")
+```
+
+
+With this we can see which national parks received the most visitors in the year of 2024. We can also compare each park's attendance because of the nature of the bar chart. The new labels and color make it easier to distinguish between the parks as well.
+
+
+
+
+
