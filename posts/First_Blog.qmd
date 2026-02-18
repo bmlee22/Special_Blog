@@ -103,7 +103,7 @@ ggplot(data = top10_usa_parks, aes(y = forcats::fct_reorder(Name, Visitors_2024)
 ```
 
 
-With this we can see which national parks received the most visitors in the year of 2024. We can also compare each park's attendance because of the nature of the bar chart. The new labels and color make it easier to distinguish between the parks as well.
+With this we can see which national parks received the most visitors in the year of 2024. We can also compare each park's attendance because of the nature of the bar chart. The new labels and color make it easier to distinguish between the parks as well. Using all the processes we learned in class it is clear that the resulting graph is best for visualizing the amount of visitors each national park recieved in 2024.
 
 
 

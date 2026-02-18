@@ -1,0 +1,150 @@
+---
+title: "2-18 Blog, The Olympics"
+author: "Ben Lee"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+## install.packages("tidyverse")
+## install.packages("gt")
+## install.packages("ggTimeSeries")
+## install.packages("ggplot2")
+```
+
+## Introduction
+With the TV in my house always having the Olympics on, I figured it would be fitting to work on a dataset that was collected from the 2026 Winter Olympics. The dataset was supplied and tidied by github users chendaniely and jonthegeek who arranged the data into a manageable data frame. It depicts a schedule of all the Olympic sports and the number of events being held on each day. A total of 16 sports are in the data frame with the events of each sport shown over the course of 18 days. An obvious question on the data is how are the events distributed throughout the week. 
+
+the blog post the data was gathered from can be found at the following link:
+https://github.com/rfordatascience/tidytuesday/blob/main/data/2026/2026-02-10/readme.md
+
+```{r}
+library(tidyverse)
+library(gt)
+
+# Load the events data
+
+dataset_url <- "https://raw.githubusercontent.com/chendaniely/olympics-2026/refs/heads/main/data/final/olympics/olympics_events.csv"
+df <- readr::read_csv(dataset_url)
+
+# Create schedule summary
+schedule <- df |>
+  group_by(date, discipline_name) |>
+  summarize(
+    total_events = n(),
+    medal_events = sum(is_medal_event),
+    .groups = "drop"
+  ) |>
+  arrange(date, discipline_name)
+
+cat("Schedule shape:", nrow(schedule), "x", ncol(schedule), "\n")
+cat("\nFirst 20 rows:\n")
+print(head(schedule, 20))
+
+# Convert date column to Date type
+schedule <- schedule |>
+  mutate(date = as.Date(date))
+
+cat("\nUpdated column types:\n")
+print(str(schedule))
+cat("\nFirst few rows:\n")
+print(head(schedule, 10))
+
+# Pivot the schedule to have disciplines as rows and dates as columns
+schedule_pivot <- schedule |>
+  select(date, discipline_name, total_events) |>
+  pivot_wider(
+    names_from = date,
+    values_from = total_events,
+    id_cols = discipline_name
+  ) |>
+  arrange(discipline_name)
+
+# Create the table
+gt_table <- schedule_pivot |>
+  gt() |>
+  tab_header(
+    title = "Olympics 2026 Event Schedule",
+    subtitle = "Total events per sport by date"
+  ) |>
+  cols_label(
+    discipline_name = "Sport"
+  )
+
+gt_table
+```
+
+## Primary Visualizations
+As mentioned in my previous blog post, I have been reviewing my notes from a previous stats class and try to connect information from said class to this one. I noticed that dates were included in this dataset and wanted to apply a package to the Olympic data. As shown in the following image, it appears that the total number of events peak on the weekends and are lowest during the middle of the week. It also shows that the events tend to peak in the middle of the Olympics with the two lowest days being the first and final day of the Winter Olympics.
+
+```{r}
+library(lubridate)
+library(ggTimeSeries)
+library(dplyr)
+library(ggplot2)
+
+schedule |>
+  group_by(date) |>
+  summarise(avg_daily_events = mean(total_events, na.rm=TRUE)) |>
+  ungroup() |>
+  ggplot_calendar_heatmap("date",
+                        "avg_daily_events", 
+                        ) + 
+  theme(legend.position = "top") +
+  scale_fill_continuous(low = 'green', high = 'red') +
+  labs(y = "Day of Week", y = "Month", fill = "Events")
+```
+
+After noticing this trend, I decided to revisit the initial data and see if this is true for all sports or if these trends were being influenced by other sports. To depict my findings I used a similar image but facet wrapped the graphs to each sport resulting in the following image. 
+
+```{r}
+schedule |>
+  group_by(date, discipline_name) |>
+  summarise(avg_daily_events = mean(total_events, na.rm=TRUE)) |>
+  ungroup() |>
+  ggplot_calendar_heatmap("date",
+                        "avg_daily_events", 
+                        ) + 
+  facet_wrap(~discipline_name) +
+  theme(legend.position = "top") +
+  scale_fill_continuous(low = 'green', high = 'red') +
+  labs(y = "Day of Week", y = "Month", fill = "Events")
+```
+
+It may be difficult to see but curling seems to have largely influenced the data as it has the most extreme values. Once I saw this it reminded me of a principle we recently learned in my stats class related to the variability of data. In this case, curling influenced the perceived number of events for each day of the Olympics. Although the graph is very cool it does not properly represent the data we collected. To properly show the variability of the data the following graph was created.
+
+```{r}
+schedule_clean <- schedule |>
+  filter(!is.na(total_events)) |>
+  group_by(date) |>
+  summarise(mean_events = mean(total_events),
+            se = sd(total_events)/ sqrt(n())) |>
+  mutate(se_ub = mean_events + se,
+         se_lb = mean_events - se)
+
+ggplot(data = schedule_clean, aes(x = date, y = mean_events)) +
+  geom_errorbar(aes(ymax = se_ub, ymin = se_lb)) +
+  geom_point() +
+  theme_minimal() +
+labs(x = "Date", y = "Number of Events",
+       title = "Number of Olympic Events Each Day!")
+```
+
+With this graph we are able to see the average number of events each day of the Winter Olympics. We can also see the variability in events for each of the days. However, we cannot see each event individually.   
+
+```{r}
+schedule |>
+  filter(!is.na(total_events)) |>
+  group_by(discipline_name) |>  
+  ggplot(aes(x = date, y = total_events, color = discipline_name))+
+  geom_line(linewidth = 1.25) +
+  scale_color_discrete()  +
+  theme_minimal() +
+  labs(x = "Date", y = "Number of Events",
+       title = "Number of Olympic Events Each Day!",
+       legend = "Sport")
+```
+
+## Conclusion
+This final graph allows us to see the trend of each Winter Olympic sport and the number of events it has for each day. It also shows the variability of each individual event without relying on summary statistics. Although the previous graphs partially answer our initial question of how are the events distributed throughout the Olympics, they do not tell the entire story. With the final graph we can correctly interperate the data.
