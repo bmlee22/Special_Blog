@@ -9,10 +9,10 @@ format:
 In my new data visualization class I found that I had not retained as much information from previous coding classes as I had wished. To remedy this I reviewed notes from my previous classes and found myself asking new questions about the data we used and how it was visualized. We had recently reviewed how to map data onto an actaul map and notes taken regarding nationalparks stood out to me. This data was collected in 2024 and had the names of the national parks in the united states, how many visitors they recieved, the area of the park and many more variables. I collected and tidied this data using the code from the previous course as it had only used to modify the data, not to make any new claims or interpretations.
 
 ```{r}
-## library(ggplot2)
-## library(forcats)
-## library(tidyverse)
-## library(rvest)
+library(ggplot2)
+library(forcats)
+library(tidyverse)
+library(rvest)
 ```
 
 ```{r}
@@ -27,7 +27,6 @@ objs <-
 
 usa_parks <- objs[[1]]
 ```
-
 
 ```{r}
 usa_parks_cleaned <-
@@ -71,7 +70,8 @@ usa_parks_cleaned <-
   )
 ```
 
-After tidying the dataset we are able to see the variables more clearly and start thinking about what questions one might have regarding national parks. A question I immediately had was about how many people visited each park compared to one another. Humans are good at using length to quantify objects so it was clear that a geom_col was the best option for visualizing this. 
+After tidying the dataset we are able to see the variables more clearly and start thinking about what questions one might have regarding national parks. A question I immediately had was about how many people visited each park compared to one another. Humans are good at using length to quantify objects so it was clear that a geom_col was the best option for visualizing this.
+
 ```{r}
 ggplot(data = usa_parks_cleaned, aes(x = Name, y = Visitors_2024))+
   geom_col()
@@ -85,13 +85,12 @@ top10_usa_parks <- usa_parks_cleaned |>
   slice(1:10)
 ```
 
-
 ```{r}
 ggplot(data = top10_usa_parks, aes(x = Name, y = Visitors_2024, fill = Name)) +
   geom_col() 
 ```
 
-Althought this looks better, there is reduntant information and it is difficult to compare the attendance of the other national parks. To do this we need to reorder the variables based on visitors and not on the alphabetical order of the parks. This was done using a fct_reorder. In addition to this we can flip the axis to make the chart easier to read. Changing the labels also makes it easier to see the names of the variables. Finally, I changed some asthetics to make the graph more visually pleasing leaving the final graph below.  
+Althought this looks better, there is reduntant information and it is difficult to compare the attendance of the other national parks. To do this we need to reorder the variables based on visitors and not on the alphabetical order of the parks. This was done using a fct_reorder. In addition to this we can flip the axis to make the chart easier to read. Changing the labels also makes it easier to see the names of the variables. Finally, I changed some asthetics to make the graph more visually pleasing leaving the final graph below.
 
 ```{r}
 ggplot(data = top10_usa_parks, aes(y = forcats::fct_reorder(Name, Visitors_2024), Name, x = Visitors_2024, fill = Name))+
@@ -102,10 +101,4 @@ ggplot(data = top10_usa_parks, aes(y = forcats::fct_reorder(Name, Visitors_2024)
        y = "Park")
 ```
 
-
 With this we can see which national parks received the most visitors in the year of 2024. We can also compare each park's attendance because of the nature of the bar chart. The new labels and color make it easier to distinguish between the parks as well. Using all the processes we learned in class it is clear that the resulting graph is best for visualizing the amount of visitors each national park recieved in 2024.
-
-
-
-
-
