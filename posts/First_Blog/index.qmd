@@ -7,7 +7,7 @@ format:
     embed-resources: true
 ---
 
-In my new data visualization class I found that I had not retained as much information from previous coding classes as I had wished. To remedy this I reviewed notes from my previous classes and found myself asking new questions about the data we used and how it was visualized. We had recently reviewed how to map data onto an actaul map and notes taken regarding nationalparks stood out to me. This data was collected in 2024 and had the names of the national parks in the united states, how many visitors they recieved, the area of the park and many more variables. I collected and tidied this data using the code from the previous course as it had only used to modify the data, not to make any new claims or interpretations.
+In my new data visualization class I found that I had not retained as much information from previous coding classes as I had wished. To remedy this I reviewed notes from my previous classes and found myself asking new questions about the data we used and how it was visualized. We had recently reviewed how to map data onto an actual map and notes taken regarding national parks stood out to me. This data was collected in 2024 and had the names of the national parks in the united states, how many visitors they received, the area of the park and many more variables. I collected and tidied this data using the code from the previous course as it had only used to modify the data, not to make any new claims or interpretations.
 
 ```{r}
 library(ggplot2)
