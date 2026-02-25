@@ -1,6 +1,7 @@
 ---
 title: "The Olympics, 2-18 Blog"
 author: "Ben Lee"
+image: "Olympics.jpg"
 format: 
   html:
     embed-resources: true
