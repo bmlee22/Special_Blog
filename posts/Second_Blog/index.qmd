@@ -1,5 +1,5 @@
 ---
-title: "2-18 Blog, The Olympics"
+title: "The Olympics, 2-18 Blog"
 author: "Ben Lee"
 format: 
   html:

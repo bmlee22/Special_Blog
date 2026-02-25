@@ -1,5 +1,5 @@
 ---
-title: "2-6 Blog, National Parks"
+title: "National Parks, 2-6 Blog"
 author: "Ben Lee"
 format: 
   html:
