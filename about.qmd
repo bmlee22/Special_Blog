@@ -1,6 +1,6 @@
 ---
 title: "About"
-image: profile.jpg
+image: BenPicture2.jgp
 about:
   template: jolla
   links:
@@ -12,4 +12,4 @@ about:
       href: https://github.com/bmlee22
 ---
 
-About this blog
+This blog is a record of the skills and techniques used in a Data Visualization class taken in 2026 by Ben Lee.
