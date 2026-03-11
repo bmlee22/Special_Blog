@@ -1,6 +1,6 @@
 ---
 title: "About"
-image: "BenPicture2.jgp"
+image: "BenPicture2.jpg"
 about:
   template: jolla
   links:
