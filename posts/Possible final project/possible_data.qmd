@@ -1,0 +1,12 @@
+---
+title: "Untitled"
+---
+
+With antivaccination rates increasing (find a dataset with this) does measles increase as well?
+
+
+```{r}
+library(readr) 
+MMR <- read_csv(here::here("posts/Data/mmr_data_us_counties.csv"))
+Census <- read_tsv(here::here("posts/Data/education.tsv"))
+```

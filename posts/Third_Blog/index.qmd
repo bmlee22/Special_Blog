@@ -1,0 +1,107 @@
+---
+title: "Tortoise, 3-11 Blog"
+author: "Ben Lee"
+image: "golem_grad.jpg"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(broom)
+library(ggplot2)
+library(ggeffects)
+library(tidyverse)
+```
+
+## Introduction
+I wasn't sure what data set I wanted to work on for this blog so, like last week, I went to the tidy Tuesday challenge on Github. Over the past couple of weeks we have been working on linear and logistic model visualization and I wanted a data set that would put the skills I learned to good use. I settled on a tortoise data set for two reasons. One, there are many variables that could influence the other which would make finding relationships between these variables fun and interesting task. Two, I have some experience with turtle research. Although I have not worked with turtles directly, I met a research group at a conference and they were studying sex determinant in turtles. With both of these reasons in mind I decided to use a data set curated by novica and jonthegeek. I hope to learn more about the variables surrounding clutch size, and sex determination in tortoise.
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2026-03-03')
+
+clutch_size_cleaned <- tuesdata$clutch_size_cleaned
+tortoise_body_condition_cleaned <- tuesdata$tortoise_body_condition_cleaned
+```
+
+## Sex Determination
+The sex of a turtle or tortoise is determined by the temperature of the sand of which the egg is layed in. Temperature is not a factor in this data set but I still want to see if there are any factors that might contribute to this.
+```{r}
+tortoise_data <- tortoise_body_condition_cleaned |> 
+  mutate(sex = if_else(sex == "f",
+         true = 1,
+         false = 0))
+
+tortoise_data$locality <- as.factor(tortoise_data$locality)
+tortoise_data$season <- as.factor(tortoise_data$season)
+
+tortoise_mod <- glm(sex ~ season + locality + year_recode, data = tortoise_data, 
+                    family = "binomial")
+tortoise_mod |> tidy()
+```
+
+By using the tidy function in the broom package we are able to find how each variable relates to the sex of the tortoises in our data set. The coefficient of each variable also relate to how they affect the sex of the tortoise. This can be visualized once a graph is designed which can help explain what the coeffecients represent. But how do we visualize a data set with three variables? This will be done by faceting, and using color to destinguish the variables.
+```{r}
+ggplot(data = tortoise_data, aes(x = year_recode, y = sex, color = season)) +
+  scale_color_viridis_d() +
+  geom_rug(data = tortoise_data |> filter(sex == 1), 
+           sides = "t", alpha = 0.04) +
+  geom_rug(data = tortoise_data |> filter(sex == 0),
+           sides = "b", alpha = 0.04) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  facet_wrap(~locality) + 
+  theme_minimal()
+```
+
+It is my understanding that warmer sand causes tortoise eggs to produce a predominantly female clutch however, this data does not represent this. If we assume that warmer temperatures are associated with Summer, it dose not make sense that more females are found in spring. Furthermore, I do not know the average temperatures of the land masses described and cannot use those to see if there is a difference in temperature between them. If I were to guess I would assume that the Konjsko has the highest tempuratures, followed by the beach, and finally the plateau.
+
+## Clutch Size
+I am now interested in seeing if there is a relationship between clutch size (number of eggs) and other variables that make up the tortiose's physiology. 
+```{r}
+clutch_data <- clutch_size_cleaned |>
+  rename(mass = body_mass_grams,
+         length = straight_carapace_length_mm)
+clutch_data$locality <- as.factor(clutch_data$locality)
+
+clutch_mod <- lm(eggs ~ age + mass + locality, data = clutch_data)
+clutch_mod |> tidy()
+
+pred_clutch <- ggpredict(clutch_mod, terms = c("age", "mass", "locality")) |>
+  as.data.frame(terms_to_colnames = TRUE) |>
+  as_tibble()
+```
+
+Before continuing futher with the dataset I wanted to see what general trends might be occuring in the data set. I ran the code below and found that there are some general trends related to age and the number of eggs in a clutch.
+```{r}
+ggplot(data = clutch_data, aes(x = age, y = eggs)) +
+  geom_point(aes(y = eggs, color = locality)) +
+  geom_smooth(method = "lm", aes(fill = locality, color = locality)) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d()
+```
+
+
+## Interaction
+After finding some general trends I wanted to make a graph that shows the interaction between age and mass. By doing this it allows there to be independence between the mass and age variables.It appears that when this interaction is added to the model it allows for a decrease in predicted clutch size.
+```{r}
+clutch_mod_int <- lm(eggs ~ age + mass + locality + age:mass, data = clutch_data)
+clutch_mod_int |> tidy()
+pred_clutch_int <- ggpredict(clutch_mod_int, terms = c("age", "mass", "locality")) |>
+  as.data.frame(terms_to_colnames = TRUE) |>
+  as_tibble()
+
+plot_df <- bind_rows(lst(pred_clutch, pred_clutch_int), .id = "model") |>
+  mutate(model = fct_recode(model, interaction = "pred_clutch_int",
+                            no_interaction = "pred_clutch"))
+
+ggplot(data = plot_df, aes(x = age, y = predicted)) +
+  facet_wrap(~ locality) +
+  geom_smooth(aes(linetype = model, color = locality, fill = locality)) +
+  theme_minimal() +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d()
+```
+
+## Conclusion
+I was able to find some interesting information and some trends regarding sex determination and clutch size in this data set which I am happy about. I struggled representing mass in the visualization which was frustrating at times. 
