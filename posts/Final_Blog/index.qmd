@@ -11,6 +11,7 @@ format:
 
 Chess is one of the world's oldest board games and has withstood the test of time with very little alterations being made to the game itself. However, over the last 50 years, resurgence outside the rule book has occurred, causing a dramatic change in how the game is played. Computer programs have revolutionized the game by providing in-depth calculations of chess positions that humans are incapable of performing. FIDE, the international federation of chess, has gathered the names and ratings of the top 100 players of every year since 1971. This data set was used to determine trends in ELO of the top 10 players each year. In addition to using the FIDE data set, two other data sets were used to visualize the relative timeline between the game of chess and the introduction of chess programs. The first data set was attained via GitHub which details the players and outcomes of all world championship matches. The second was scraped from Chess.com’s website listing the world champions. These two data sets were joined to create a comprehensive collection of every chess world champion and who they played in the chess world championship. This collective data set was used to answer the question: how long have chess engines played a role in chess World Championship matches?
 
+## Results
 ```{r}
 library(readr)
 large_data <- read_csv(here::here("data/1.World_Chess_Champoinship_CSV.csv"))
@@ -20,6 +21,11 @@ Clean up data set
 ```{r}
 ## install.packages("dplyr")
 library(dplyr)
+## install.packages("tidyverse")
+library(tidyverse)
+## install.packages("tidyr")
+library(tidyr)
+
 large_clean <- large_data |>
   filter(Round == 1) |>
   select(c(1,3:6), -Round) |>
@@ -50,9 +56,6 @@ Classical_WC_Clean <- Classical_WC[-1, ]
 
 Clean the new data set and join with the old
 ```{r}
-## install.packages("tidyr")
-library(tidyr)
-
 Classical_Clean <- Classical_WC_Clean |> separate_longer_delim(cols = "Years Won",
                                             delim = ",") |>
   mutate(Year = parse_number(`Years Won`)) |>
@@ -104,8 +107,6 @@ Create Network Plot
 library(ggraph)
 ## install.packages("tidygraph")
 library(tidygraph)
-## install.packages("tidyverse")
-library(tidyverse)
 ## install.packages("plotly")
 library(plotly)
 
