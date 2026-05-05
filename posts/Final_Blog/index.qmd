@@ -1,0 +1,245 @@
+---
+title: "Chess, 5-4 Blog"
+author: "Ben Lee"
+image: "Rplot.jpeg"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Introduction
+
+Chess is one of the world's oldest board games and has withstood the test of time with very little alterations being made to the game itself. However, over the last 50 years, resurgence outside the rule book has occurred, causing a dramatic change in how the game is played. Computer programs have revolutionized the game by providing in-depth calculations of chess positions that humans are incapable of performing. FIDE, the international federation of chess, has gathered the names and ratings of the top 100 players of every year since 1971. This data set was used to determine trends in ELO of the top 10 players each year. In addition to using the FIDE data set, two other data sets were used to visualize the relative timeline between the game of chess and the introduction of chess programs. The first data set was attained via GitHub which details the players and outcomes of all world championship matches. The second was scraped from Chess.com’s website listing the world champions. These two data sets were joined to create a comprehensive collection of every chess world champion and who they played in the chess world championship. This collective data set was used to answer the question: how long have chess engines played a role in chess World Championship matches?
+
+```{r}
+library(readr)
+large_data <- read_csv(here::here("data/1.World_Chess_Champoinship_CSV.csv"))
+```
+
+Clean up data set
+```{r}
+## install.packages("dplyr")
+library(dplyr)
+large_clean <- large_data |>
+  filter(Round == 1) |>
+  select(c(1,3:6), -Round) |>
+  separate_wider_delim(Date, ".", names = c("Year", "na"),
+                       too_many = "merge") |>
+  select(-na) |>
+  mutate(Year = parse_number(Year)) |>
+  arrange(desc(Year)) 
+```
+
+Gather a new data set of only champions
+```{r}
+library(rvest)
+url <- "https://www.chess.com/article/view/world-chess-champions"
+
+h <- read_html(url)
+
+tab <- h %>% html_nodes("table")
+
+objs <- tab %>% html_table()
+
+Classical_WC <- objs[[1]]
+
+colnames(Classical_WC) <- Classical_WC[1, ]
+
+Classical_WC_Clean <- Classical_WC[-1, ]        
+```
+
+Clean the new data set and join with the old
+```{r}
+## install.packages("tidyr")
+library(tidyr)
+
+Classical_Clean <- Classical_WC_Clean |> separate_longer_delim(cols = "Years Won",
+                                            delim = ",") |>
+  mutate(Year = parse_number(`Years Won`)) |>
+  select(Player, Year)
+
+Joined_data <- left_join(Classical_Clean,
+          large_clean,
+          by = "Year",
+          relationship = "many-to-many")
+
+Tidy_df <- Joined_data |>
+  slice(-c(11, 12, 19, 20, 31, 39, 45:49, 53, 57, 60, 61)) |>
+  separate_wider_delim(cols = White,
+                       delim = ",",
+                       names = c("Player1", "First_name1")) |>
+  separate_wider_delim(cols = Black,
+                       delim = ",",
+                       names = c("Player2", "First_name2")) |>
+  select(c(-First_name1, -First_name2)) |>
+  pivot_longer(c(Player1, Player2),
+               names_to = "player_num",
+               values_to = "player") |>
+  select(-1,-3)
+```
+
+Tidy for Network Plot
+```{r}
+network_df <- Tidy_df |>
+  group_by(Year) |>
+  reframe(test = t(combn(player, 2))) |>
+  mutate(vertex1 = test[ ,1],
+         vertex2 = test[ ,2]) |>
+  dplyr::select(-test)
+
+network_sum <- network_df |> mutate(player_first = if_else(vertex1 > vertex2,
+                                           true = vertex2,
+                                           false = vertex1),
+                     player_second = if_else(vertex1 > vertex2,
+                                            true = vertex1,
+                                            false = vertex2)) |>
+  dplyr::select(-vertex1, -vertex2) |>
+  group_by(player_first, player_second) |>
+  summarise(n_players = n())
+```
+
+Create Network Plot
+```{r}
+## install.packages("ggraph")
+library(ggraph)
+## install.packages("tidygraph")
+library(tidygraph)
+## install.packages("tidyverse")
+library(tidyverse)
+## install.packages("plotly")
+library(plotly)
+
+nodes <- Tidy_df |> 
+  distinct(player) |>
+  rename(label = player) |>
+  mutate(engine = case_when(
+    label %in% c("Zukertort" , "Steinitz" , "Chigorin" , "Gunsberg" , "Lasker", "Marshall" , "Tarrasch" , "Schlechter" , "Janowsky" , "Capablanca", "Alekhine" , "Bogoljubow" , "Euwe" , "Botvinnik" , "Bronstein", "Smyslov" , "Tal" , "Petrosian" , "Spassky" , "Fischer", "Kortschnoj") ~ "Pre-engine Era",
+    label %in% c("Karpov", "Kasparov", "Short", "Anand", "Kramnik" , "Leko", "Topalov") ~ "Early Engine Era", 
+    label %in% c( "Gelfand" , "Carlsen", "Karjakin" , "Caruana" , "Nepomniachtchi") ~ "Modern Engine Era",
+    .default = "Transition")) |>
+  filter(label %in% c(network_sum |> pull(player_first),
+                      network_sum |> pull(player_second))) |>
+  rowid_to_column("id")
+
+edges <- left_join(network_sum, nodes, by = join_by(player_first == label)) |>
+  rename(from = "id") |>
+  left_join(nodes, by = join_by(player_second == label)) |>
+  rename(to = "id") |>
+  ungroup() |>
+  dplyr::select(to, from, n_players)
+
+network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+
+ggraph(network_obj |> mutate(centrality = centrality_degree()),
+                            layout = "kk") +
+  geom_edge_link(aes(width = n_players), alpha = 0.7, show.legend = FALSE) +
+  geom_node_point(aes(colour = engine,
+                      size = centrality), show.legend = FALSE) +
+  scale_edge_width(range = c(0.5, 3)) +
+  geom_node_text(aes(label = label), repel = TRUE) +
+  labs(title = "Chess World Champions and their Contenders from 1886 to 2021",
+       caption = "Salmon indicates the Pre-engine Era before 1990.
+       Green indicates the Early Engine Era from 1990 until 2010.
+       Blue indicates the Modern Engine Era which started in 2010.") +
+  scale_color_manual(values = c("#00BA38",
+                                "#619CFF",
+                                "#F8766D"))
+```
+
+The first plot developed was a network plot depicting each chess World Champion and who they played while defending their title. The network plot was developed to help visualize how long organized chess existed before computers began to impact the game. Each color represents a different era of chess. 
+
+Find Top 10 Players from each Year
+```{r}
+FIDE_Chess_Data <- read_csv(here::here("data/Top_10_Chess_Players_Year(Sheet1).csv"))
+
+FIDE_Chess_Data_Clean <- FIDE_Chess_Data |>
+  separate_wider_delim(cols = "Date",
+                       delim = " ",
+                       names = c("Year", "Month")
+                       ) |>
+  separate_wider_delim(cols = "Name",
+                       delim = ", ",
+                       names = c("Name", "First"),
+                       too_few = "align_start") |>
+  select(-"First") |>
+  separate_wider_delim(cols = "Name",
+                       delim = " ",
+                       names = c("Name", "First2"),
+                       too_few = "align_start") |>
+  select(-"First2") |>
+  mutate(Era = case_when(Year <= 1990 ~ "Pre-engine Era",
+                         Year >= 2010 ~ "Modern Engine Era",
+                         .default = "Early Engine Era",)
+         ) |>
+  mutate(Year = parse_number(Year))
+
+```
+
+Visualize Trends in data
+```{r}
+## install.packages("ggplot")
+library(ggplot2)
+
+Top_10_Plot <- ggplot(data = FIDE_Chess_Data_Clean, 
+                      aes(x = Year, y = Rating, color = Era,
+                          Name = Name))+
+  geom_point() +
+  scale_x_continuous(breaks = seq(min(1970), 
+                                  max(2030), by = 10)
+                     ) +
+  geom_vline(xintercept = 1997) +
+  labs(title = "Ratings of the Top Ten Chess Players for Each Year",
+       caption = "Veritical line indicates chess world Champion Gary Kasparov's loss to chess engine, Deep Blue.",
+       y = "Rating (ElO)"
+       )
+
+ggplotly(Top_10_Plot, tooltip = c("Name", "Rating", "Year"))
+```
+
+Compare Differences in Ratings between Eras
+```{r}
+## install.packages("ggbeeswarm")
+library(ggbeeswarm)
+library(forcats)
+FIDE_Chess_Data_Clean <- FIDE_Chess_Data_Clean |>
+  mutate(Era = factor(Era, 
+                      levels = c("Pre-engine Era", 
+                                 "Early Engine Era", 
+                                 "Modern Engine Era")))
+
+ggplot(data = FIDE_Chess_Data_Clean, aes(x = Era, y = Rating, fill = Era))+
+  geom_boxplot() +
+  geom_beeswarm(alpha = .2) +
+  labs(title = "Average Ratings of the Top Ten Chess Players for Each Era",
+       y = "Rating (ElO)") +
+  guides(fill = "none")
+```
+
+Statistically compare between the Eras
+```{r}
+Anova_Chess <- aov(Rating ~ Era, data = FIDE_Chess_Data_Clean)
+
+summary(Anova_Chess)
+TukeyHSD(Anova_Chess)
+plot(TukeyHSD(Anova_Chess, conf.level = .95), las = 2)
+# None of these include 0 and therefore they are all statistically different 
+```
+
+See if the rate of change between eras is due to computers or normal advancement and understanding in chess
+```{r}
+Trend_Plot <- ggplot(data = FIDE_Chess_Data_Clean, 
+                      aes(x = Year, y = Rating, color = Era))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(~ Era, scales = "free_x") +
+  labs(title = "Trends in Ratings of the Top Ten Chess Players for Each Era",
+       y = "Rating (ElO)") +
+  guides(color = "none")
+
+ggplotly(Trend_Plot, tooltip = c("Name", "Rating", "Year"))
+```
+It is apparent that the rate of change for the Pre-Engine Era and Modern era is flat while the Early Engine era shows a steep increase. Because the rates of change are not consistent between the eras, it can be assumed that this 100-point increase in ELO is a result of engines and not the natural progression of player ability as seen in most sports. 
+
+## Conclusion
+
+Through the use of multiple plots, I have been able to show how recent use of chess engines may have had a positive impact on player ratings. While I have been able to demonstrate that there seems to be a correlation between the top chess player rating and the usage of chess engines, there have been a few limitations. I cannot say for certain that the use of chess engines has caused an increase in player ratings. In the future, I hope to look at the accuracy of games played by top chess players compared to chess engines. If I see an increased similarity between chess players and engines, I may be able to say for certain that chess players are improving due to chess engines. 
